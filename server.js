@@ -72,13 +72,12 @@ app.get('/', function(req, res){
     body += '<link rel="stylesheet" type="text/css" href="default.css">';
     body += '<h1>'+pagetitle+'</h1>\n';
     body += '<img src="http://'+hostname+':'+streamport+'/?action=stream" />\n';
-    body += '<a href="/cameraoff">turn off camera</a>';
     
     body += '<div class="container control-pad">';
-    body += '<div class="arrow-up"></div>';
-    body += '<div class="arrow-down"></div>';
-    body += '<div class="arrow-left"></div>';
-    body += '<div class="arrow-right"></div>';
+    body += '<div id="arrow-up" class="arrow-up"></div>';
+    body += '<div id="arrow-down" class="arrow-down"></div>';
+    body += '<div id="arrow-left" class="arrow-left"></div>';
+    body += '<div id="arrow-right" class="arrow-right"></div>';
     body += '</div>';
     
     var tempFn = doT.template(b.readTextFile(appLocation+'/form_wifi.html'));

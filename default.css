@@ -26,7 +26,7 @@ form.wifi label{
 	border-left: 20px solid transparent;
 	border-right: 20px solid transparent;
 	
-	border-bottom: 20px solid #111;
+	border-bottom: 20px solid #cccccc;
 }
 
 .arrow-down {
@@ -39,7 +39,7 @@ form.wifi label{
 	border-left: 20px solid transparent;
 	border-right: 20px solid transparent;
 	
-	border-top: 20px solid #111;
+	border-top: 20px solid #cccccc;
 }
 
 .arrow-right {
@@ -52,7 +52,7 @@ form.wifi label{
 	border-top: 20px solid transparent;
 	border-bottom: 20px solid transparent;
 	
-	border-left: 20px solid #111;
+	border-left: 20px solid #cccccc;
 }
 
 .arrow-left {
@@ -65,7 +65,7 @@ form.wifi label{
 	border-top: 20px solid transparent;
 	border-bottom: 20px solid transparent; 
 	
-	border-right:20px solid #111; 
+	border-right:20px solid #cccccc; 
 }
 
 .control-pad {
