@@ -1,6 +1,7 @@
 YUI().use('node', 'event', 'io-base', function (Y) {
     
-    var socket = io.connect('http://10.0.0.17:1080');
+    var sockethost = Y.one("#socketiohost").get('value');
+    var socket = io.connect('http://'+sockethost);
     
     socket.on('robotstatus', function (data) {
         console.log(data);

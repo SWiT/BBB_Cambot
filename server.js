@@ -11,9 +11,11 @@ var b = require('bonescript');
 var os = require('os');
 var spawn = require('child_process').spawn;
 
-var port = 81;
+var webport = 81;
+var socketport = 1080;
+var streamport = 8080;
 
-server.listen(1080);
+server.listen(socketport);
 
 var appLocation = "/var/lib/cloud9/cambot";
 var cameraCommandPath = '/home/root/mjpg-streamer-code/mjpg-streamer-experimental';
@@ -34,18 +36,18 @@ var osni = os.networkInterfaces();
 console.log("server running at:");
 
 var ipaddress = osni.lo[0].address;
-console.log(" http://%s:%s", ipaddress, port);
+console.log(" http://%s:%s", ipaddress, webport);
 if(osni.usb0){
     var ipaddress = osni.usb0[0].address;
-    console.log(" http://%s:%s", ipaddress, port);
+    console.log(" http://%s:%s", ipaddress, webport);
 }
 if(osni.wlan0){
     ipaddress = osni.wlan0[0].address;
-    console.log(" http://%s:%s", ipaddress, port);
+    console.log(" http://%s:%s", ipaddress, webport);
 }
 if(osni.eth0){
     ipaddress = osni.eth0[0].address;
-    console.log(" http://%s:%s", ipaddress, port);
+    console.log(" http://%s:%s", ipaddress, webport);
 }
 
 
@@ -64,11 +66,12 @@ app.get('/', function(req, res){
     
     var body = '';
     body += '<script src="http://yui.yahooapis.com/3.14.1/build/yui/yui-min.js"></script>';
-    body += '<script src="http://10.0.0.17:1080/socket.io/socket.io.js"></script>';
+    body += '<script src="http://'+hostname+':'+socketport+'/socket.io/socket.io.js"></script>';
+    body += '<input id="socketiohost" type="hidden" value="'+hostname+':'+socketport+'" />';
     body += '<script type="text/javascript" src="client.js"></script>';
     body += '<link rel="stylesheet" type="text/css" href="default.css">';
     body += '<h1>'+pagetitle+'</h1>\n';
-    body += '<img src="http://'+hostname+':8080/?action=stream" />\n';
+    body += '<img src="http://'+hostname+':'+streamport+'/?action=stream" />\n';
     body += '<a href="/cameraoff">turn off camera</a>';
     
     body += '<div class="container control-pad">';
@@ -146,7 +149,7 @@ app.get('/reboot', function(req, res){
     spawn('reboot');
 });
 
-app.listen(port);
+app.listen(webport);
 
 
 /**************************************************
