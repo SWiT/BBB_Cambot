@@ -84,7 +84,7 @@ app.get('/', function(req, res){
     body += tempFn({wifi_ssid:wifi_ssid, wifi_security:wifi_security, wifi_passphrase:wifi_passphrase});
     
     res.send(body);
-    
+    res.end();
 });
 
 app.get('/client.js', function(req, res){
@@ -105,7 +105,11 @@ io.sockets.on('connection', function(socket) {
     stopCamera();
   });
   
-  
+  socket.on('drive', function(data) {
+    console.log('socket:drive command');
+    console.log(data);
+    
+  });
   
 });
 
@@ -132,19 +136,21 @@ app.post('/updatewifi', function(req, res){
         configdata += "Passphrase = "+wifi_passphrase+"\n";
     }
     b.writeTextFile(wificonfig, configdata);
-    res.send("Updated WiFi configuration.  Restarting now.<br/>Wait awhile then go <a href="/">back</a>");
+    res.send('Updated WiFi configuration.  Restarting now.<br/>Wait a while then go <a href="/">back</a>');
     spawn('reboot');
 });
 
 app.get('/poweroff', function(req, res){
     logRequest(req);
     res.send('Shutting down now.');
+    res.end();
     spawn('poweroff');
 });
 
 app.get('/reboot', function(req, res){
     logRequest(req);
-    res.send("Restarting now.<br/>Wait awhile then go <a href="/">back</a>");
+    res.send('Restarting now.<br/>Wait a while then go <a href="/">back</a>');
+    res.end();
     spawn('reboot');
 });
 
