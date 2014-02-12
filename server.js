@@ -1,3 +1,4 @@
+var doT = require('dot');
 var express = require('express');
 var app = express();
 var b = require('bonescript');
@@ -5,10 +6,15 @@ var os = require('os');
 var spawn = require('child_process').spawn;
 
 var port = 81;
-var applocation = "/var/lib/cloud9/cambot";
+var appLocation = "/var/lib/cloud9/cambot";
 var camerattl = 25000; //camera time to live in ms
 var cameraCommandPath = '/home/root/mjpg-streamer-code/mjpg-streamer-experimental';
+var wificonfig = '/var/lib/connman/wifi.config';
 var pagetitle = "BeagleBone Black Webcam Stream";
+
+var wifi_ssid = '';
+var wifi_security = '';
+var wifi_passphrase = '';
 
 var now = new Date();
 var expire = new Date();
@@ -36,18 +42,17 @@ if(osni.eth0){
 /****************************
  * Requests
  */
-app.get('/keepalive', function(req, res){
-    updateTimes();
-    logRequest(req);
-    res.end();
-});
-
+ 
 app.get('/', function(req, res){
-    checkCamera();
+    startCamera();
     updateTimes();
     logRequest(req);
     
     var hostname = req.headers.host.split(":")[0];
+    
+    //Get wifi config settings
+    parsewificonfig(b.readTextFile(wificonfig));
+    
     
     var body = '';
     body += '<script src="http://yui.yahooapis.com/3.14.1/build/yui/yui-min.js"></script>';
@@ -55,32 +60,98 @@ app.get('/', function(req, res){
     body += '<link rel="stylesheet" type="text/css" href="default.css">';
     body += '<h1>'+pagetitle+'</h1>\n';
     body += '<img src="http://'+hostname+':8080/?action=stream" />\n';
+    body += '<a href="/cameraoff">turn off camera</a>';
     
+    body += '<div class="container control-pad">';
     body += '<div class="arrow-up"></div>';
     body += '<div class="arrow-down"></div>';
     body += '<div class="arrow-left"></div>';
     body += '<div class="arrow-right"></div>';
+    body += '</div>';
+    
+    var tempFn = doT.template(b.readTextFile(appLocation+'/form_wifi.html'));
+    body += tempFn({wifi_ssid:wifi_ssid, wifi_security:wifi_security, wifi_passphrase:wifi_passphrase});
 
     res.send(body);
+    
 });
 
 app.get('/client.js', function(req, res){
     logRequest(req);
-    res.end(b.readTextFile(applocation+req.url));
+    res.send(b.readTextFile(appLocation+req.url));
 });
 
-app.get('default.css', function(req, res){
+app.get('/default.css', function(req, res){
     logRequest(req);
-    res.end(b.readTextFile(applocation+req.url));
+    res.send(b.readTextFile(appLocation+req.url));
+});
+
+
+/******************************************************
+ * Commands
+ */
+
+app.post('/updatewifi', function(req, res){
+    updateTimes();
+    logRequest(req);
+    console.log(req.param('wifi_ssid'));
+    res.end();
+});
+
+app.get('/keepalive', function(req, res){
+    updateTimes();
+    logRequest(req);
+    res.end();
+});
+
+app.get('/cameraoff', function(req, res){
+    logRequest(req);
+    stopCamera();
+    res.send("stopping camera now.");
+});
+
+app.get('/poweroff', function(req, res){
+    logRequest(req);
+    spawn('poweroff');
+    res.send("shutting down now.");
+});
+
+app.get('/restart', function(req, res){
+    logRequest(req);
+    spawn('restart');
+    res.send("restarting now.");
 });
 
 app.listen(port);
 
 
+/**************************************************
+ * Functions
+ */
 
-function checkCamera(){
+function parsewificonfig(data){
+    var lines = data.split("\n");
+    for (var key in lines){
+        var line = lines[key].trim();
+        if(line.substr(0,1) == "#"){
+            continue;
+        }else if(line.substr(0,1) == "["){
+            continue;
+        }else if(line.substr(0,4) == "Type"){
+            continue;
+        }else if(line.substr(0,4) == "Name"){
+            wifi_ssid = line.substr(7);
+        }else if(line.substr(0,8) == "Security"){
+            wifi_security = line.substr(11);
+        }else if(line.substr(0,10) == "Passphrase"){
+            wifi_passphrase = line.substr(13);
+        }
+    }
+}
+
+function startCamera(){
     if(!cameraOn){
-        console.log("starting camera...");
+        console.log(printDate()+" "+printTime()+" starting camera.");
         mjpg_streamer = spawn(cameraCommandPath+'/mjpg_streamer', ['-i',cameraCommandPath+'/input_uvc.so','-o',cameraCommandPath+'/output_http.so'], {cwd:cameraCommandPath});
         mjpg_streamer.stdout.on('data', function (data) {
           console.log('stdout: ' + data);
@@ -92,6 +163,14 @@ function checkCamera(){
           console.log('child process exited with code ' + code);
         });
         cameraOn = true;
+    }
+}
+
+function stopCamera(){
+    console.log(printDate()+" "+printTime()+" stopping camera.");
+    cameraOn = false;
+    if(mjpg_streamer){
+        mjpg_streamer.kill();
     }
 }
 
@@ -115,11 +194,8 @@ function logRequest(req){
 function checkExpired(){
     now = new Date();
     if(cameraOn && expire < now){
-        console.log(printTime()+" expired, stopping camera...");
-        cameraOn = false;
-        if(mjpg_streamer){
-            mjpg_streamer.kill();
-        }
+        console.log(printDate()+" "+printTime()+" expired");
+        stopCamera();
     }
 }
 setInterval(checkExpired, 1000);
