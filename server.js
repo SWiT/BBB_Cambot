@@ -4,15 +4,18 @@ var express = require('express');
 var app = express();
 app.use(express.urlencoded());
 
-var io = require('socket.io').listen(app);
+var server = require('http').createServer(app);
+var io = require('socket.io').listen(server);
 
 var b = require('bonescript');
 var os = require('os');
 var spawn = require('child_process').spawn;
 
 var port = 81;
+
+server.listen(1080);
+
 var appLocation = "/var/lib/cloud9/cambot";
-var camerattl = 25000; //camera time to live in ms
 var cameraCommandPath = '/home/root/mjpg-streamer-code/mjpg-streamer-experimental';
 var wificonfig = '/var/lib/connman/wifi.config';
 var pagetitle = "BeagleBone Black Webcam Stream";
@@ -20,9 +23,6 @@ var pagetitle = "BeagleBone Black Webcam Stream";
 var wifi_ssid = '';
 var wifi_security = '';
 var wifi_passphrase = '';
-
-var now = new Date();
-var expire = new Date();
 
 var cameraOn = false;
 var mjpg_streamer;
@@ -52,17 +52,9 @@ if(osni.eth0){
 /****************************
  * Resources
  */
- 
-io.sockets.on('connection', function (socket) {
-  socket.emit('news', { hello: 'world' });
-  socket.on('my other event', function (data) {
-    console.log(data);
-  });
-}); 
- 
+
 app.get('/', function(req, res){
     startCamera();
-    updateTimes();
     logRequest(req);
     
     var hostname = req.headers.host.split(":")[0];
@@ -72,6 +64,7 @@ app.get('/', function(req, res){
     
     var body = '';
     body += '<script src="http://yui.yahooapis.com/3.14.1/build/yui/yui-min.js"></script>';
+    body += '<script src="http://10.0.0.17:1080/socket.io/socket.io.js"></script>';
     body += '<script type="text/javascript" src="client.js"></script>';
     body += '<link rel="stylesheet" type="text/css" href="default.css">';
     body += '<h1>'+pagetitle+'</h1>\n';
@@ -85,9 +78,8 @@ app.get('/', function(req, res){
     body += '<div class="arrow-right"></div>';
     body += '</div>';
     
-    //var tempFn = doT.template(b.readTextFile(appLocation+'/form_wifi.html'));
-    //body += tempFn({wifi_ssid:wifi_ssid, wifi_security:wifi_security, wifi_passphrase:wifi_passphrase});
-    body += doT.template(b.readTextFile(appLocation+'/form_wifi.html'))({wifi_ssid:wifi_ssid, wifi_security:wifi_security, wifi_passphrase:wifi_passphrase});
+    var tempFn = doT.template(b.readTextFile(appLocation+'/form_wifi.html'));
+    body += tempFn({wifi_ssid:wifi_ssid, wifi_security:wifi_security, wifi_passphrase:wifi_passphrase});
     
     res.send(body);
     
@@ -103,15 +95,26 @@ app.get('/default.css', function(req, res){
     res.send(b.readTextFile(appLocation+req.url));
 });
 
+io.sockets.on('connection', function(socket) {
+  socket.emit('robotstatus', { servoL:'?',servoR:'?','bumpL':0,'bumpR':0 });
+  
+  socket.on('disconnect', function() {
+    console.log('socket:client disconnected');
+    stopCamera();
+  });
+  
+  
+  
+});
+
+
 
 /******************************************************
  * Commands
  */
 
 app.post('/updatewifi', function(req, res){
-    updateTimes();
     logRequest(req);
-    console.log(req.body);
     
     wifi_ssid = req.body.wifi_ssid;
     wifi_security = req.body.wifi_security;
@@ -126,33 +129,20 @@ app.post('/updatewifi', function(req, res){
     if (wifi_passphrase !== ''){
         configdata += "Passphrase = "+wifi_passphrase+"\n";
     }
-    console.log(configdata);
     b.writeTextFile(wificonfig, configdata);
-    res.send("Updated WiFi configuration.  Restarting now.<br/><a href="/">back</a>");
+    res.send("Updated WiFi configuration.  Restarting now.<br/>Wait awhile then go <a href="/">back</a>");
     spawn('reboot');
-});
-
-app.get('/keepalive', function(req, res){
-    updateTimes();
-    logRequest(req);
-    res.send("OK");
-});
-
-app.get('/cameraoff', function(req, res){
-    logRequest(req);
-    res.send("Stopping camera now.");
-    stopCamera();
 });
 
 app.get('/poweroff', function(req, res){
     logRequest(req);
-    res.send('Shutting down now.<br/><a href="/">back</a>');
+    res.send('Shutting down now.');
     spawn('poweroff');
 });
 
 app.get('/reboot', function(req, res){
     logRequest(req);
-    res.send("Restarting now.<br/><a href="/">back</a>");
+    res.send("Restarting now.<br/>Wait awhile then go <a href="/">back</a>");
     spawn('reboot');
 });
 
@@ -185,9 +175,9 @@ function parsewificonfig(data){
 
 function startCamera(){
     if(!cameraOn){
-        console.log(printDate()+" "+printTime()+" starting camera.");
+        console.log(printDateTime()+" starting camera.");
         mjpg_streamer = spawn(cameraCommandPath+'/mjpg_streamer', ['-i',cameraCommandPath+'/input_uvc.so','-o',cameraCommandPath+'/output_http.so'], {cwd:cameraCommandPath});
-        mjpg_streamer.stdout.on('data', function (data) {
+        /*mjpg_streamer.stdout.on('data', function (data) {
           console.log('stdout: ' + data);
         });    
         mjpg_streamer.stderr.on('data', function (data) {
@@ -195,42 +185,32 @@ function startCamera(){
         });
         mjpg_streamer.on('exit', function (code) {
           console.log('child process exited with code ' + code);
-        });
+        });*/
         cameraOn = true;
     }
 }
 
 function stopCamera(){
-    console.log(printDate()+" "+printTime()+" stopping camera.");
+    console.log( printDateTime()+" stopping camera.");
     cameraOn = false;
     if(mjpg_streamer){
         mjpg_streamer.kill();
     }
 }
 
-function updateTimes(){
-    now = new Date();
-    expire = new Date(now.getTime()+camerattl);
-}
-
-var printTime = function(){return now.getHours()+":"+("0"+now.getMinutes()).substr(-2,2)+":"+("0"+now.getSeconds()).substr(-2,2);};
-var printDate = function(){return now.getFullYear()+"-"+(now.getMonth()+1)+"-"+now.getDate();};
+var printDateTime = function(){
+    var now = new Date();
+    var datetime = now.getFullYear()+"-"+(now.getMonth()+1)+"-"+now.getDate()+" ";
+    datetime += now.getHours()+":"+("0"+now.getMinutes()).substr(-2,2)+":"+("0"+now.getSeconds()).substr(-2,2);
+    return datetime;
+};
 
 function logRequest(req){
     var log = "";
-    log += printDate();  //Date
-    log += " "+printTime();  //Time
+    log += printDateTime();
     log += " "+req.headers.host+req.url;  //Requested URL
     log += " "+req.connection.remoteAddress;    //users IP address.
     console.log(log);
 }
 
-function checkExpired(){
-    now = new Date();
-    if(cameraOn && expire < now){
-        console.log(printDate()+" "+printTime()+" expired");
-        stopCamera();
-    }
-}
-setInterval(checkExpired, 1000);
 
