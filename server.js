@@ -1,6 +1,11 @@
 var doT = require('dot');
+
 var express = require('express');
 var app = express();
+app.use(express.urlencoded());
+
+var io = require('socket.io').listen(app);
+
 var b = require('bonescript');
 var os = require('os');
 var spawn = require('child_process').spawn;
@@ -26,9 +31,14 @@ var mjpg_streamer;
  * Setup
  */
 var osni = os.networkInterfaces();
-var ipaddress = "192.168.7.2";
 console.log("server running at:");
+
+var ipaddress = osni.lo[0].address;
 console.log(" http://%s:%s", ipaddress, port);
+if(osni.usb0){
+    var ipaddress = osni.usb0[0].address;
+    console.log(" http://%s:%s", ipaddress, port);
+}
 if(osni.wlan0){
     ipaddress = osni.wlan0[0].address;
     console.log(" http://%s:%s", ipaddress, port);
@@ -40,8 +50,15 @@ if(osni.eth0){
 
 
 /****************************
- * Requests
+ * Resources
  */
+ 
+io.sockets.on('connection', function (socket) {
+  socket.emit('news', { hello: 'world' });
+  socket.on('my other event', function (data) {
+    console.log(data);
+  });
+}); 
  
 app.get('/', function(req, res){
     startCamera();
@@ -52,7 +69,6 @@ app.get('/', function(req, res){
     
     //Get wifi config settings
     parsewificonfig(b.readTextFile(wificonfig));
-    
     
     var body = '';
     body += '<script src="http://yui.yahooapis.com/3.14.1/build/yui/yui-min.js"></script>';
@@ -69,9 +85,10 @@ app.get('/', function(req, res){
     body += '<div class="arrow-right"></div>';
     body += '</div>';
     
-    var tempFn = doT.template(b.readTextFile(appLocation+'/form_wifi.html'));
-    body += tempFn({wifi_ssid:wifi_ssid, wifi_security:wifi_security, wifi_passphrase:wifi_passphrase});
-
+    //var tempFn = doT.template(b.readTextFile(appLocation+'/form_wifi.html'));
+    //body += tempFn({wifi_ssid:wifi_ssid, wifi_security:wifi_security, wifi_passphrase:wifi_passphrase});
+    body += doT.template(b.readTextFile(appLocation+'/form_wifi.html'))({wifi_ssid:wifi_ssid, wifi_security:wifi_security, wifi_passphrase:wifi_passphrase});
+    
     res.send(body);
     
 });
@@ -94,32 +111,49 @@ app.get('/default.css', function(req, res){
 app.post('/updatewifi', function(req, res){
     updateTimes();
     logRequest(req);
-    console.log(req.param('wifi_ssid'));
-    res.end();
+    console.log(req.body);
+    
+    wifi_ssid = req.body.wifi_ssid;
+    wifi_security = req.body.wifi_security;
+    wifi_passphrase = req.body.wifi_passphrase;
+    
+    var configdata = "[service_home]\n";
+    configdata += "Type = wifi\n";
+    configdata += "Name = "+wifi_ssid+"\n";
+    if (wifi_security !== ''){
+        configdata += "Security = "+wifi_security+"\n";
+    }
+    if (wifi_passphrase !== ''){
+        configdata += "Passphrase = "+wifi_passphrase+"\n";
+    }
+    console.log(configdata);
+    b.writeTextFile(wificonfig, configdata);
+    res.send("Updated WiFi configuration.  Restarting now.<br/><a href="/">back</a>");
+    spawn('reboot');
 });
 
 app.get('/keepalive', function(req, res){
     updateTimes();
     logRequest(req);
-    res.end();
+    res.send("OK");
 });
 
 app.get('/cameraoff', function(req, res){
     logRequest(req);
+    res.send("Stopping camera now.");
     stopCamera();
-    res.send("stopping camera now.");
 });
 
 app.get('/poweroff', function(req, res){
     logRequest(req);
+    res.send('Shutting down now.<br/><a href="/">back</a>');
     spawn('poweroff');
-    res.send("shutting down now.");
 });
 
-app.get('/restart', function(req, res){
+app.get('/reboot', function(req, res){
     logRequest(req);
-    spawn('restart');
-    res.send("restarting now.");
+    res.send("Restarting now.<br/><a href="/">back</a>");
+    spawn('reboot');
 });
 
 app.listen(port);

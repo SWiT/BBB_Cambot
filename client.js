@@ -7,9 +7,10 @@ YUI().use('node', 'event', 'io-base', function (Y) {
         Y.io('/keepalive', {
             on:   {success: successFn}
         });
-        setTimeout(keepalive, 20000);
+        //setTimeout(keepalive, 20000);
     };
     
-    keepalive();
+    //keepalive();
+    setInterval(keepalive, 20000);
 });
 
