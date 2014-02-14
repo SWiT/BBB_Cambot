@@ -29,6 +29,11 @@ var wifi_passphrase = '';
 var cameraOn = false;
 var mjpg_streamer;
 
+var button_fwd = false;
+var button_rev = false;
+var button_left = false;
+var button_right = false;
+
 /****************************
  * Setup
  */
@@ -71,7 +76,7 @@ app.get('/', function(req, res){
     body += '<script type="text/javascript" src="client.js"></script>';
     body += '<link rel="stylesheet" type="text/css" href="default.css">';
     body += '<h1>'+pagetitle+'</h1>\n';
-    body += '<img src="http://'+hostname+':'+streamport+'/?action=stream" />\n';
+    body += '<div id="videostreamcontainer" class="container"><img id="videostream" src="http://'+hostname+':'+streamport+'/?action=stream" /></div>\n';
     
     body += '<div class="container control-pad">';
     body += '<div id="arrow-up" class="arrow-up"></div>';
@@ -97,18 +102,53 @@ app.get('/default.css', function(req, res){
     res.send(b.readTextFile(appLocation+req.url));
 });
 
+
+/******************************************************
+ * Websocket commands
+ */
+
 io.sockets.on('connection', function(socket) {
-  socket.emit('robotstatus', { servoL:'?',servoR:'?','bumpL':0,'bumpR':0 });
+  //socket.emit('robotstatus', { servoL:'?',servoR:'?','bumpL':0,'bumpR':0 });
   
   socket.on('disconnect', function() {
     console.log('socket:client disconnected');
+    stopMotors();
     stopCamera();
   });
   
   socket.on('drive', function(data) {
-    console.log('socket:drive command');
-    console.log(data);
-    
+    if(data.status=='down'){
+        switch(data.key){
+            case 'up-arrow':
+                button_fwd = true;
+                break;
+            case 'down-arrow':
+                button_rev = true;
+                break;
+            case 'left-arrow':
+                button_left = true;
+                break;
+            case 'right-arrow':
+                button_right = true;
+                break;
+        }
+    }else if(data.status=='up'){
+        switch(data.key){
+            case 'up-arrow':
+                button_fwd = false;
+                break;
+            case 'down-arrow':
+                button_rev = false;
+                break;
+            case 'left-arrow':
+                button_left = false;
+                break;
+            case 'right-arrow':
+                button_right = false;
+                break;
+        }
+    }
+    setMotors();
   });
   
 });
@@ -116,7 +156,7 @@ io.sockets.on('connection', function(socket) {
 
 
 /******************************************************
- * Commands
+ * Post Commands
  */
 
 app.post('/updatewifi', function(req, res){
@@ -160,8 +200,64 @@ app.listen(webport);
 /**************************************************
  * Functions
  */
+var stopMotors = function(){
+    button_fwd = false;
+    button_rev = false;
+    button_left = false;
+    button_right = false;
+    setMotors();
+}; 
+ 
+var setmotorstime = new Date();
+var checkMotors = function(){
+    var now = Date();
+    if(now > (setmotorstime + 3000)){   //if it is 3 seconds since last setMotors
+        console.log(printDateTime() + ' waiting...');
+        stopMotors();
+    }
+};
+setInterval(checkMotors, 3000);
 
-function parsewificonfig(data){
+var setMotors = function (){
+    if((button_fwd && button_rev) || (button_left && button_right)){    //WTF are you doing?  Damn button masher.
+        console.log(printDateTime() + ' drive: WTF');
+        
+    }else if(button_fwd){
+        if(button_left){        //Forward Left
+            console.log(printDateTime() + ' drive: Forward Left');
+            
+        }else if(button_right){ //Forward Right
+            console.log(printDateTime() + ' drive: Forward Right');
+            
+        }else{                  //Forward
+            console.log(printDateTime() + ' drive: Forward');
+            
+        }
+    }else if(button_rev){
+        if(button_left){        //Reverse Left
+            console.log(printDateTime() + ' drive: Reverse Left');
+            
+        }else if(button_right){ //Reverse Right
+            console.log(printDateTime() + '  drive: Reverse Right');
+            
+        }else{                  //Reverse
+            console.log(printDateTime() + ' drive: Reverse');
+            
+        }
+    }else if(button_left){      //Rotate Left
+        console.log(printDateTime() + ' drive: Rotate Left');
+        
+    }else if(button_right){     //Rotate Right
+        console.log(printDateTime() + ' drive: Rotate Right');
+        
+    }else{
+        console.log(printDateTime() + ' drive: Stop');
+        
+    }
+    setmotorstime = Date();
+};
+
+var parsewificonfig = function(data){
     var lines = data.split("\n");
     for (var key in lines){
         var line = lines[key].trim();
@@ -179,9 +275,9 @@ function parsewificonfig(data){
             wifi_passphrase = line.substr(13);
         }
     }
-}
+};
 
-function startCamera(){
+var startCamera = function(){
     if(!cameraOn){
         console.log(printDateTime()+" starting camera.");
         mjpg_streamer = spawn(cameraCommandPath+'/mjpg_streamer', ['-i',cameraCommandPath+'/input_uvc.so','-o',cameraCommandPath+'/output_http.so'], {cwd:cameraCommandPath});
@@ -196,15 +292,15 @@ function startCamera(){
         });*/
         cameraOn = true;
     }
-}
+};
 
-function stopCamera(){
+var stopCamera = function(){
     console.log( printDateTime()+" stopping camera.");
     cameraOn = false;
     if(mjpg_streamer){
         mjpg_streamer.kill();
     }
-}
+};
 
 var printDateTime = function(){
     var now = new Date();
@@ -213,12 +309,12 @@ var printDateTime = function(){
     return datetime;
 };
 
-function logRequest(req){
+var logRequest = function(req){
     var log = "";
     log += printDateTime();
     log += " "+req.headers.host+req.url;  //Requested URL
     log += " "+req.connection.remoteAddress;    //users IP address.
     console.log(log);
-}
+};
 
 
