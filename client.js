@@ -48,22 +48,31 @@ YUI().use('node', 'event', 'io-base', function (Y) {
         }
     });
     
-    var arrowup = Y.one('#arrow-up');
-    var uptimerid;
-    var holdup = function(){
-        socket.emit('drive', { key:'up-arrow', status:'down'});
-        uptimerid = setTimeout(holdup, 750);
-    };
-    arrowup.on('mousedown', function(e){
-        e.target.setStyle('borderBottomColor','#000000');
-        holdup();
-    });
-    arrowup.on('mouseup', function(e){
-        e.target.setStyle('borderBottomColor','#bbbbbb');
-        socket.emit('drive', { key:'up-arrow', status:'up'});
-        clearTimeout(uptimerid);
-    });
     
+    var arrows = {};
+    var timerids = {};
+    var hold = {};
+    var stylemap = {'up':'borderBottomColor', 'down':'borderTopColor', 'left':'borderRightColor', 'right':'borderLeftColor'};
+    var preparrow = function(d){
+        arrows[d] = Y.one('#arrow-'+d);
+        hold[d] = function(){
+            socket.emit('drive', { key:d+'-arrow', status:'down'});
+            timerids[d] = setTimeout(hold[d], 750);
+        };
+        arrows[d].on('mousedown', function(e){
+            e.target.setStyle(stylemap[d],'#000000');
+            hold[d]();
+        });
+        arrows[d].on('mouseup', function(e){
+            e.target.setStyle(stylemap[d],'#bbbbbb');
+            socket.emit('drive', { key:d+'-arrow', status:'up'});
+            clearTimeout(timerids[d]);
+        });
+    };
+    preparrow('up');
+    preparrow('down');
+    preparrow('left');
+    preparrow('right');
     
     
     
