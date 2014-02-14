@@ -117,6 +117,7 @@ io.sockets.on('connection', function(socket) {
   });
   
   socket.on('drive', function(data) {
+    clearTimeout(motortimerid);
     if(data.status=='down'){
         switch(data.key){
             case 'up-arrow':
@@ -207,16 +208,12 @@ var stopMotors = function(){
     button_right = false;
     setMotors();
 }; 
- 
-var setmotorstime = new Date();
-var checkMotors = function(){
-    var now = Date();
-    if(now > (setmotorstime + 3000)){   //if it is 3 seconds since last setMotors
-        console.log(printDateTime() + ' waiting...');
-        stopMotors();
-    }
+
+var motortimerid;
+var expireMotors = function(){
+    console.log(printDateTime() + ' waiting...');
+    stopMotors();
 };
-setInterval(checkMotors, 3000);
 
 var setMotors = function (){
     if((button_fwd && button_rev) || (button_left && button_right)){    //WTF are you doing?  Damn button masher.
@@ -254,7 +251,8 @@ var setMotors = function (){
         console.log(printDateTime() + ' drive: Stop');
         
     }
-    setmotorstime = Date();
+    
+    motortimerid = setTimeout(expireMotors, 3000);
 };
 
 var parsewificonfig = function(data){
