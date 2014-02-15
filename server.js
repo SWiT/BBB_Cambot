@@ -34,6 +34,12 @@ var button_rev = false;
 var button_left = false;
 var button_right = false;
 
+var leftServo = 'P9_14';
+var rightServo = 'P9_22';
+
+var bumpSwitchLeft = 'P9_16';
+var bumpSwitchRight = 'P9_18';
+
 /****************************
  * Setup
  */
@@ -54,6 +60,44 @@ if(osni.eth0){
     ipaddress = osni.eth0[0].address;
     console.log(" http://%s:%s", ipaddress, webport);
 }
+
+
+
+/***********************************
+ * Servo stuff
+ */
+
+b.pinMode(leftServo, b.OUTPUT);
+b.pinMode(rightServo, b.OUTPUT);
+var leftServoValue = 0; //-100 to 100
+var rightServoValue = 0; //-100 to 100
+var updateServos = function() {
+    var ccw = 1.7;  //counter clockwise timing in ms
+    var stop = 1.5; //stop position timing in ms
+    var cw = 1.3;   //clockwise timing in ms
+    var pause = 20; //time to pause after a pulse in ms
+    var pulse;
+    if(leftServoValue >= 0){
+        pulse = stop + ((ccw - stop)*(leftServoValue/100));
+    }else{
+        pulse = stop + ((cw - stop)*(-leftServoValue/100));
+    }
+    var duty = pulse/(pulse + pause); 
+    var freq = 1000/(pulse + pause);
+    b.analogWrite(leftServo, duty, freq);
+    
+    if(rightServoValue >= 0){
+        pulse = stop + ((cw - stop)*(rightServoValue/100));
+    }else{
+        pulse = stop + ((ccw - stop)*(-rightServoValue/100));
+    }
+    duty = pulse/(pulse + pause); 
+    freq = 1000/(pulse + pause);
+    b.analogWrite(rightServo, duty, freq);
+};
+updateServos();
+
+
 
 
 /****************************
@@ -218,40 +262,52 @@ var expireMotors = function(){
 var setMotors = function (){
     if((button_fwd && button_rev) || (button_left && button_right)){    //WTF are you doing?  Damn button masher.
         console.log(printDateTime() + ' drive: WTF');
-        
+        rightServoValue = 0;
+        leftServoValue = 0;
     }else if(button_fwd){
         if(button_left){        //Forward Left
             console.log(printDateTime() + ' drive: Forward Left');
-            
+            rightServoValue = 100;
+            leftServoValue = 50;
         }else if(button_right){ //Forward Right
             console.log(printDateTime() + ' drive: Forward Right');
-            
+            rightServoValue = 50;
+            leftServoValue = 100;
         }else{                  //Forward
             console.log(printDateTime() + ' drive: Forward');
-            
+            rightServoValue = 100;
+            leftServoValue = 100;
         }
     }else if(button_rev){
         if(button_left){        //Reverse Left
             console.log(printDateTime() + ' drive: Reverse Left');
-            
+            rightServoValue = -100;
+            leftServoValue = -50;
         }else if(button_right){ //Reverse Right
             console.log(printDateTime() + '  drive: Reverse Right');
-            
+            rightServoValue = -50;
+            leftServoValue = -100;
         }else{                  //Reverse
             console.log(printDateTime() + ' drive: Reverse');
-            
+            rightServoValue = -100;
+            leftServoValue = -100;
         }
     }else if(button_left){      //Rotate Left
         console.log(printDateTime() + ' drive: Rotate Left');
-        
+        rightServoValue = 100;
+        leftServoValue = -100;
     }else if(button_right){     //Rotate Right
         console.log(printDateTime() + ' drive: Rotate Right');
-        
+        rightServoValue = -100;
+        leftServoValue = 100;
     }else{
         console.log(printDateTime() + ' drive: Stop');
-        
+        rightServoValue = 0;
+        leftServoValue = 0;
     }
+    updateServos();
     
+    if(motortimerid){clearTimeout(motortimerid);}
     motortimerid = setTimeout(expireMotors, 3000);
 };
 
