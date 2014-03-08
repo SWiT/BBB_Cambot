@@ -260,6 +260,7 @@ var expireMotors = function(){
 };
 
 var setMotors = function (){
+    var speed = 20;
     if((button_fwd && button_rev) || (button_left && button_right)){    //WTF are you doing?  Damn button masher.
         console.log(printDateTime() + ' drive: WTF');
         rightServoValue = 0;
@@ -267,39 +268,39 @@ var setMotors = function (){
     }else if(button_fwd){
         if(button_left){        //Forward Left
             console.log(printDateTime() + ' drive: Forward Left');
-            rightServoValue = 100;
-            leftServoValue = 50;
+            rightServoValue = speed;
+            leftServoValue = speed/2;
         }else if(button_right){ //Forward Right
             console.log(printDateTime() + ' drive: Forward Right');
-            rightServoValue = 50;
-            leftServoValue = 100;
+            rightServoValue = speed/2;
+            leftServoValue = speed;
         }else{                  //Forward
             console.log(printDateTime() + ' drive: Forward');
-            rightServoValue = 100;
-            leftServoValue = 100;
+            rightServoValue = speed;
+            leftServoValue = speed;
         }
     }else if(button_rev){
         if(button_left){        //Reverse Left
             console.log(printDateTime() + ' drive: Reverse Left');
-            rightServoValue = -100;
-            leftServoValue = -50;
+            rightServoValue = -speed;
+            leftServoValue = -speed/2;
         }else if(button_right){ //Reverse Right
             console.log(printDateTime() + '  drive: Reverse Right');
-            rightServoValue = -50;
-            leftServoValue = -100;
+            rightServoValue = -speed/2;
+            leftServoValue = -speed;
         }else{                  //Reverse
             console.log(printDateTime() + ' drive: Reverse');
-            rightServoValue = -100;
-            leftServoValue = -100;
+            rightServoValue = -speed;
+            leftServoValue = -speed;
         }
     }else if(button_left){      //Rotate Left
         console.log(printDateTime() + ' drive: Rotate Left');
-        rightServoValue = 100;
-        leftServoValue = -100;
+        rightServoValue = speed;
+        leftServoValue = -speed;
     }else if(button_right){     //Rotate Right
         console.log(printDateTime() + ' drive: Rotate Right');
-        rightServoValue = -100;
-        leftServoValue = 100;
+        rightServoValue = -speed;
+        leftServoValue = speed;
     }else{
         console.log(printDateTime() + ' drive: Stop');
         rightServoValue = 0;
